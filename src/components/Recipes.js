@@ -1,20 +1,33 @@
 import React, { useState } from "react";
 import { Link } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { DeleteRecipe, getAllRecipes, permission } from "../api/auth";
+import {
+  DeleteRecipe,
+  getAllCategories,
+  getAllIngredients,
+  getAllRecipes,
+  permission,
+} from "../api/auth";
 import { checkToken } from "../api/storage";
 
 const Recipes = () => {
   const [name, setName] = useState("");
   const [category, setCategory] = useState("");
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [selectedIngredients, setSelectedIngredients] = useState([]);
-  const categories = ["Appetizer", "Main Course", "Dessert"];
-  const ingredients = ["Chicken", "Beef", "Tomatoes", "Cheese", "Pasta"];
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   const { data, isSuccess, isLoading } = useQuery({
     queryKey: ["recipes"],
     queryFn: () => getAllRecipes(),
+  });
+
+  const { data: categories } = useQuery({
+    queryKey: ["categories"],
+    queryFn: () => getAllCategories(),
+  });
+  const { data: ingredients } = useQuery({
+    queryKey: ["ingredients"],
+    queryFn: () => getAllIngredients(),
   });
 
   const queryClient = useQueryClient();
@@ -27,21 +40,31 @@ const Recipes = () => {
   });
 
   const handleIngredientChange = (ingredient) => {
-    setSelectedIngredients((prev) =>
-      prev.includes(ingredient)
-        ? prev.filter((item) => item !== ingredient)
-        : [...prev, ingredient]
+    setSelectedIngredients(
+      (prev) =>
+        prev.includes(ingredient)
+          ? prev.filter((item) => item !== ingredient) // إزالة المكون إذا كان موجودًا
+          : [...prev, ingredient] // إضافة المكون إذا لم يكن موجودًا
     );
-  };
-  const handleFilter = () => {
-    console.log("Name:", name);
-    console.log("Category:", category);
-    console.log("Ingredients:", selectedIngredients);
   };
   const { data: permissionData } = useQuery({
     queryKey: ["permissions"],
     queryFn: () => permission(),
   });
+
+  const filteredRecipes = data?.filter((recipe) => {
+    const matchName = name
+      ? recipe?.name?.toLowerCase()?.includes(name?.toLowerCase())
+      : true;
+    const matchCategory = category ? recipe.category === category : true;
+    const matchIngredients = selectedIngredients.length
+      ? selectedIngredients.every((ingredient) =>
+          recipe.ingredients.includes(ingredient)
+        )
+      : true;
+    return matchName && matchCategory && matchIngredients;
+  });
+
   return (
     <>
       <div className="Recipes">
@@ -51,114 +74,124 @@ const Recipes = () => {
 
         <div className="filterRecipes">
           <div className="container d-flex align-items-center gap-5">
-            <span>Filter Our Recipes:</span>
-            <div className="filter">
-              {}
-              <input
-                className="search"
-                type="text"
-                placeholder="Search by name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-
-              {}
-              <select
-                className="search"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-              >
-                <option value="">Select Category</option>
-                {categories.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat}
-                  </option>
-                ))}
-              </select>
-
-              {}
-              <div className="dropdown">
-                <div
-                  className="dropdown-header-filter"
-                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                >
-                  <span>Select Ingredients</span>
-                  <span className="arrow">
-                    {isDropdownOpen ? (
-                      <svg
-                        fill="#000000"
-                        height="16px"
-                        width="16px"
-                        version="1.1"
-                        id="Layer_1"
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 330 330"
-                        s
-                      >
-                        <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
-                        <g
-                          id="SVGRepo_tracerCarrier"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        ></g>
-                        <g id="SVGRepo_iconCarrier">
-                          <path
-                            id="XMLID_224_"
-                            d="M325.606,229.393l-150.004-150C172.79,76.58,168.974,75,164.996,75c-3.979,0-7.794,1.581-10.607,4.394 l-149.996,150c-5.858,5.858-5.858,15.355,0,21.213c5.857,5.857,15.355,5.858,21.213,0l139.39-139.393l139.397,139.393 C307.322,253.536,311.161,255,315,255c3.839,0,7.678-1.464,10.607-4.394C331.464,244.748,331.464,235.251,325.606,229.393z"
-                          ></path>
-                        </g>
-                      </svg>
-                    ) : (
-                      <svg
-                        fill="#000000"
-                        height="16px"
-                        width="16px"
-                        version="1.1"
-                        id="Layer_1"
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 330 330"
-                        s
-                      >
-                        <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
-                        <g
-                          id="SVGRepo_tracerCarrier"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        ></g>
-                        <g id="SVGRepo_iconCarrier">
-                          <path
-                            id="XMLID_225_"
-                            d="M325.607,79.393c-5.857-5.857-15.355-5.858-21.213,0.001l-139.39,139.393L25.607,79.393 c-5.857-5.857-15.355-5.858-21.213,0.001c-5.858,5.858-5.858,15.355,0,21.213l150.004,150c2.813,2.813,6.628,4.393,10.606,4.393 s7.794-1.581,10.606-4.394l149.996-150C331.465,94.749,331.465,85.251,325.607,79.393z"
-                          ></path>
-                        </g>
-                      </svg>
-                    )}
-                  </span>
-                </div>
-                {isDropdownOpen && (
-                  <div className="dropdown-menu-filter">
-                    {ingredients.map((ingredient) => (
-                      <label key={ingredient} className="dropdown-item-filter">
-                        <input
-                          type="checkbox"
-                          value={ingredient}
-                          checked={selectedIngredients.includes(ingredient)}
-                          onChange={() => handleIngredientChange(ingredient)}
-                        />
-                        {ingredient}
-                      </label>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {}
-              <button className="btn butt" onClick={handleFilter}>
-                Filter
-              </button>
-            </div>
             {checkToken() && (
-              <Link to={"/recipes/add"} className="btn btn-dark">
+              <>
+                <span>Filter Our Recipes:</span>
+                <div className="filter">
+                  {/* فلتر الاسم */}
+                  <input
+                    className="search"
+                    type="text"
+                    placeholder="Search by name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                  />
+
+                  {/* فلتر الكاتيجوري */}
+                  <select
+                    className="search"
+                    value={category?._id}
+                    onChange={(e) => setCategory(e.target.value)}
+                  >
+                    <option value="">Select Category</option>
+                    {categories?.map((cat) => (
+                      <option key={cat?._id} value={cat?._id}>
+                        {cat?.name}
+                      </option>
+                    ))}
+                  </select>
+
+                  {/* فلتر المكونات */}
+                  <div className="dropdown">
+                    <div
+                      className="dropdown-header-filter"
+                      onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                    >
+                      <span>Select Ingredients</span>
+                      <span className="arrow">
+                        {isDropdownOpen ? (
+                          <svg
+                            fill="#000000"
+                            height="16px"
+                            width="16px"
+                            version="1.1"
+                            id="Layer_1"
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 330 330"
+                            s
+                          >
+                            <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
+                            <g
+                              id="SVGRepo_tracerCarrier"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            ></g>
+                            <g id="SVGRepo_iconCarrier">
+                              <path
+                                id="XMLID_224_"
+                                d="M325.606,229.393l-150.004-150C172.79,76.58,168.974,75,164.996,75c-3.979,0-7.794,1.581-10.607,4.394 l-149.996,150c-5.858,5.858-5.858,15.355,0,21.213c5.857,5.857,15.355,5.858,21.213,0l139.39-139.393l139.397,139.393 C307.322,253.536,311.161,255,315,255c3.839,0,7.678-1.464,10.607-4.394C331.464,244.748,331.464,235.251,325.606,229.393z"
+                              ></path>
+                            </g>
+                          </svg>
+                        ) : (
+                          <svg
+                            fill="#000000"
+                            height="16px"
+                            width="16px"
+                            version="1.1"
+                            id="Layer_1"
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 330 330"
+                            s
+                          >
+                            <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
+                            <g
+                              id="SVGRepo_tracerCarrier"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            ></g>
+                            <g id="SVGRepo_iconCarrier">
+                              <path
+                                id="XMLID_225_"
+                                d="M325.607,79.393c-5.857-5.857-15.355-5.858-21.213,0.001l-139.39,139.393L25.607,79.393 c-5.857-5.857-15.355-5.858-21.213,0.001c-5.858,5.858-5.858,15.355,0,21.213l150.004,150c2.813,2.813,6.628,4.393,10.606,4.393 s7.794-1.581,10.606-4.394l149.996-150C331.465,94.749,331.465,85.251,325.607,79.393z"
+                              ></path>
+                            </g>
+                          </svg>
+                        )}
+                      </span>
+                    </div>
+                    {isDropdownOpen && (
+                      <div className="dropdown-menu-filter">
+                        {ingredients?.map((ingredient) => (
+                          <label
+                            key={ingredient?._id}
+                            className="dropdown-item-filter"
+                          >
+                            <input
+                              type="checkbox"
+                              value={ingredient?._id}
+                              checked={selectedIngredients?.includes(
+                                ingredient?._id
+                              )}
+                              onChange={() =>
+                                handleIngredientChange(ingredient?._id)
+                              }
+                            />
+                            {ingredient?.name}
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* <button className="btn butt" onClick={handleFilter}>
+                    Filter
+                  </button> */}
+                </div>
+              </>
+            )}
+            {checkToken() && (
+              <Link to={"/recipes/add"} className="btn btn-dark ms-auto">
                 + Add New Recipes
               </Link>
             )}
@@ -170,8 +203,8 @@ const Recipes = () => {
             {isLoading && <h1 className="loadingHead">Loading...</h1>}
             {isSuccess && (
               <div className="row">
-                {data?.length > 0 ? (
-                  data.map(
+                {filteredRecipes?.length > 0 ? (
+                  filteredRecipes.map(
                     (item) =>
                       (item?.name || item?.instructions || item?.image) && (
                         <div
